@@ -8,6 +8,8 @@ import { S3Params } from './config.model';
 import { parse } from 'path';
 
 const getMetadataOfImage = (buffer: Buffer): Metadata => {
+  const meta = ExifReader.load(buffer);
+
   const {
     FocalLength,
     DateTimeOriginal,
@@ -17,19 +19,19 @@ const getMetadataOfImage = (buffer: Buffer): Metadata => {
     ExposureTime,
     FNumber,
     ISOSpeedRatings
-  } = ExifReader.load(buffer);
+  } = meta;
 
   const date = DateTimeOriginal.description.split(' ')[0].replace(/:/g, '-')
 
   return {
-    focal: FocalLength.description,
+    focal: FocalLength?.description,
     date: new Date(date).toLocaleDateString(),
-    cameraBrand: Make.description,
-    cameraModel: Model.description,
-    lensModel: LensModel.description,
-    exposure: ExposureTime.description,
-    aperture: FNumber.description,
-    iso: ISOSpeedRatings.description
+    cameraBrand: Make?.description,
+    cameraModel: Model?.description,
+    lensModel: LensModel?.description,
+    exposure: ExposureTime?.description,
+    aperture: FNumber?.description,
+    iso: ISOSpeedRatings?.description
   }
 };
 
@@ -116,10 +118,12 @@ const processImage = async (s3Config: S3Params, resolutions: number[], { file, b
     file: entry
   }));
 
-  const images: Image[] = await Promise.all(files.map(async (file) => {
+  const images: Image[] = await Promise.all(files.map(async (file, index) => {
     const metadata = getMetadataOfImage(file.buffer);
 
     const resolutions = await processImage(config.s3, config.resolution, file);
+
+    console.log(`${index + 1}/${files.length}`);
 
     return {
       metadata,
@@ -133,6 +137,4 @@ const processImage = async (s3Config: S3Params, resolutions: number[], { file, b
   });
 
   console.log('Output written in ./outputs.json');
-
-  return images;
 })();
